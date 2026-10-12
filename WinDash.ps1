@@ -23,8 +23,10 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
 }
 
 $LogFile      = Join-Path $PSScriptRoot 'windash.log'
-$UltraGuid    = '3ff9831b-6f80-4830-8178-736cd4229e7b'   # Revision - Ultra Performance
+$UltraGuid    = '3ff9831b-6f80-4830-8178-736cd4229e7b'   # Revision - Ultra Performance (ReviOS only)
 $BalancedGuid = '381b4222-f694-41f0-9685-ff5bb260df2e'   # Windows Balanced
+# Without ReviOS, the "performance" side of the power toggles uses Windows' built-in High performance plan.
+if (((powercfg /list) -join "`n") -notmatch $UltraGuid) { $UltraGuid = '8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c' }
 $AutoTaskName = 'WinDash Auto Power Plan'
 
 # ---------------- helpers ----------------
@@ -166,12 +168,12 @@ function Get-EdgeTasks { (Get-TaskService).GetFolder('\').GetTasks(1) | Where-Ob
 $Toggles = @(
     # ---- Power
     [pscustomobject]@{ Category = 'Power'; Name = 'Auto power plan'; Explorer = $false
-        Desc = 'Ultra Performance when plugged in, Balanced on battery. Switches by itself when you plug or unplug.'
+        Desc = 'Max performance plan when plugged in, Balanced on battery. Switches by itself when you plug or unplug.'
         Get  = { Test-TaskExists $AutoTaskName }
         On   = { Register-AutoPowerTask; Set-PlanForPowerSource }
         Off  = { Unregister-ScheduledTask -TaskName $AutoTaskName -Confirm:$false } }
     [pscustomobject]@{ Category = 'Power'; Name = 'Ultra Performance plan'; Explorer = $false
-        Desc = 'ReviOS max-performance plan. Off = Balanced. If Auto power plan is on, it wins the next time you plug or unplug.'
+        Desc = 'ReviOS max-performance plan (High performance on non-ReviOS PCs). Off = Balanced. If Auto power plan is on, it wins the next time you plug or unplug.'
         Get  = { (Get-ActivePlanGuid) -eq $UltraGuid }
         On   = { powercfg /setactive $UltraGuid }
         Off  = { powercfg /setactive $BalancedGuid } }
